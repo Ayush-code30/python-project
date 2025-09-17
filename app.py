@@ -7,20 +7,26 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
+# -------------------------------
 # Set up Gemini
+# -------------------------------
 genai.configure(api_key="YOUR_GOOGLE_API_KEY")  # Replace with your actual API key
 
 def get_gemini_response(prompt_intro, review_text, _placeholder=""):
     model = genai.GenerativeModel('gemini-1.5-flash')
     response = model.generate_content([prompt_intro, review_text, _placeholder])
-    return response.text
+    return response.text.strip()
 
+# -------------------------------
 # Streamlit page setup
+# -------------------------------
 st.set_page_config(page_title="Sentiment Analyzer", page_icon="😊")
 st.title("😊😠 Product Review Sentiment Analyzer")
-st.write("Classify reviews as Positive, Neutral, or Negative using ML or Gemini")
+st.write("Classify reviews as Positive, Neutral, or Negative using ML or Gemini AI")
 
+# -------------------------------
 # Sample dataset
+# -------------------------------
 @st.cache_data
 def load_data():
     data = pd.DataFrame({
@@ -36,8 +42,10 @@ def load_data():
             "Highly recommend!",
             "Disappointed with the purchase."
         ],
-        "sentiment": ["positive", "neutral", "negative", "positive", "neutral",
-                      "positive", "negative", "neutral", "positive", "negative"]
+        "sentiment": [
+            "positive", "neutral", "negative", "positive", "neutral",
+            "positive", "negative", "neutral", "positive", "negative"
+        ]
     })
     return data
 
@@ -47,12 +55,16 @@ data = load_data()
 if st.checkbox("Show sample reviews"):
     st.write(data)
 
+# -------------------------------
 # Preprocess and train ML model
+# -------------------------------
 vectorizer = CountVectorizer(stop_words="english")
 X = vectorizer.fit_transform(data["review"])
 y = data["sentiment"]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
 model = MultinomialNB()
 model.fit(X_train, y_train)
@@ -62,7 +74,9 @@ accuracy = accuracy_score(y_test, y_pred)
 # Show accuracy
 st.metric("Model Accuracy", f"{accuracy:.0%}")
 
+# -------------------------------
 # Choose prediction method
+# -------------------------------
 method = st.radio("Choose prediction method:", ("Naive Bayes (ML)", "Gemini AI"))
 
 # Input for prediction
@@ -73,7 +87,7 @@ if st.button("Predict Sentiment"):
     if method == "Naive Bayes (ML)":
         review_vec = vectorizer.transform([user_review])
         prediction = model.predict(review_vec)[0]
-        proba = model.predict_proba(review_vec).max()
+        proba = model.predict_proba(review_vec)[0].max()  # fixed confidence
 
         if prediction == "positive":
             st.success(f"😊 Positive ({proba:.0%} confidence)")
@@ -86,22 +100,26 @@ if st.button("Predict Sentiment"):
         with st.spinner("Contacting Gemini..."):
             prompt = (
                 "Classify the sentiment of this product review as Positive, Neutral, or Negative. "
-                "Just return one word (Positive, Neutral, or Negative), and if possible, also give a short confidence estimate.\n"
+                "Just return one word (Positive, Neutral, or Negative), optionally with confidence.\n"
                 "Review:"
             )
             gemini_output = get_gemini_response(prompt, user_review)
 
-        # Basic formatting for response
+        # Clean Gemini output (take first word only)
+        sentiment_word = gemini_output.split()[0].lower()
+
         st.subheader("Gemini's Response:")
-        if "positive" in gemini_output.lower():
+        if "positive" in sentiment_word:
             st.success(f"😊 {gemini_output}")
-        elif "neutral" in gemini_output.lower():
+        elif "neutral" in sentiment_word:
             st.info(f"😐 {gemini_output}")
-        elif "negative" in gemini_output.lower():
+        elif "negative" in sentiment_word:
             st.error(f"😠 {gemini_output}")
         else:
             st.warning(f"🤖 Unclear response: {gemini_output}")
 
+# -------------------------------
 # Footer
+# -------------------------------
 st.markdown("---")
 st.caption("Internship Project | Sentiment Analysis with Naive Bayes + Gemini AI")
